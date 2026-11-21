@@ -14,12 +14,20 @@ function HomePage() {
 
   let category = searchParams.get("category");
   let sort = searchParams.get("sort");
+  let minPrice = searchParams.get("minPrice");
+  let maxPrice = searchParams.get("maxPrice");
 
   if (category === null) {
     category = "all";
   }
   if (sort === null) {
     sort = "default";
+  }
+  if (minPrice === null) {
+    minPrice = "";
+  }
+  if (maxPrice === null) {
+    maxPrice = "";
   }
 
   function changeCategory(newCategory) {
@@ -34,10 +42,43 @@ function HomePage() {
     setSearchParams(newParams);
   }
 
+  function changeMinPrice(newMin) {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("minPrice", newMin);
+    setSearchParams(newParams);
+  }
+
+  function changeMaxPrice(newMax) {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("maxPrice", newMax);
+    setSearchParams(newParams);
+  }
+
   const productsQuery = useQuery({
     queryKey: ["products"],
     queryFn: getProducts,
   });
+
+  let allCategories = [];
+
+  if (productsQuery.isSuccess === true) {
+    let allProducts = productsQuery.data.products;
+
+    for (let i = 0; i < allProducts.length; i++) {
+      let productCategory = allProducts[i].category;
+
+      let found = false;
+      for (let j = 0; j < allCategories.length; j++) {
+        if (allCategories[j] === productCategory) {
+          found = true;
+        }
+      }
+
+      if (found === false) {
+        allCategories.push(productCategory);
+      }
+    }
+  }
 
   let content = null;
 
@@ -70,6 +111,21 @@ function HomePage() {
       });
     }
 
+    if (minPrice !== "") {
+      let minNumber = Number(minPrice);
+      filteredProducts = filteredProducts.filter(function (product) {
+        return product.price >= minNumber;
+      });
+    }
+
+    if (maxPrice !== "") {
+      let maxNumber = Number(maxPrice);
+      filteredProducts = filteredProducts.filter(function (product) {
+        return product.price <= maxNumber;
+      });
+    }
+
+    // Sort
     if (sort === "low-to-high") {
       filteredProducts = filteredProducts.slice().sort(function (a, b) {
         return a.price - b.price;
@@ -81,19 +137,29 @@ function HomePage() {
       });
     }
 
-    content = (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {filteredProducts.map(function (product) {
-          return (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onClick={setSelectedProduct}
-            />
-          );
-        })}
-      </div>
-    );
+    if (filteredProducts.length === 0) {
+      content = (
+        <div className="text-center py-10">
+          <p className="text-gray-500 font-medium">
+            No products found matching your filters.
+          </p>
+        </div>
+      );
+    } else {
+      content = (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filteredProducts.map(function (product) {
+            return (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onClick={setSelectedProduct}
+              />
+            );
+          })}
+        </div>
+      );
+    }
   }
 
   let modalContent = null;
@@ -115,8 +181,13 @@ function HomePage() {
       <FilterSidebar
         category={category}
         sort={sort}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        categories={allCategories}
         onCategoryChange={changeCategory}
         onSortChange={changeSort}
+        onMinPriceChange={changeMinPrice}
+        onMaxPriceChange={changeMaxPrice}
       />
 
       {content}
